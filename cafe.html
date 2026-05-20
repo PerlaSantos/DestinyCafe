@@ -707,5 +707,47 @@
             showAlert('proveedorAlert', 'Proveedor registrado exitosamente', 'success');
         });
     </script>
+    <script>
+        // Inicializar el cliente de Supabase
+        const supabaseUrl = 'https://purmoskaaiujfxpjokkk.supabase.co/rest/v1/';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB1cm1vc2thYWl1amZ4cGpva2trIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkwMzE0MzUsImV4cCI6MjA5NDYwNzQzNX0.V3hc0x8RCgp-CZ_h5YOJ3W8Af6lb55etcpjxjkLmzt0';
+        const supabase = supabase.createClient(supabaseUrl, supabaseKey);
+        
+        // Función para leer datos
+        async function cargarDatos() {
+        const { data, error } = await supabase
+          .from('mis_datos')
+          .select('*');
+        
+        if (error) {
+          console.error('Error:', error);
+          return [];
+        }
+        
+        console.log('Datos cargados:', data);
+        return data;
+        }
+        
+        // Función para insertar datos
+        async function insertarDato(nombre, descripcion, valor) {
+        const { data, error } = await supabase
+          .from('mis_datos')
+          .insert([
+            { nombre: nombre, descripcion: descripcion, valor: valor }
+          ])
+          .select();
+        
+        if (error) {
+          console.error('Error al insertar:', error);
+          return null;
+        }
+        
+        console.log('Dato insertado:', data);
+        return data;
+        }
+        
+        // Ejemplo: cargar datos al cargar la página
+        cargarDatos();
+    </script>
 </body>
 </html>
