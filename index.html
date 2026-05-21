@@ -585,14 +585,16 @@
         </div>
     </footer>
 
-     // JavaScript
+    <!-- ============================================================
+         JAVASCRIPT — Integración con Supabase
+         ============================================================ -->
     <script>
-    // ─── 1. INICIALIZAR SUPABASE 
+    // ─── 1. INICIALIZAR SUPABASE ───────────────────────────────────────────────
     const SUPABASE_URL  = 'https://udczvtbgygdovwwwvrnm.supabase.co';
     const SUPABASE_KEY  = 'sb_publishable_HopkZ8umbgYzAEOlvqq81A_l-qQIeIE';
     const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    // ─── 2. UTILIDADES 
+    // ─── 2. UTILIDADES ────────────────────────────────────────────────────────
     function showAlert(elementId, message, type) {
         const el = document.getElementById(elementId);
         el.textContent = message;
@@ -623,7 +625,7 @@
             const { error } = await db.from('producto').select('id_producto').limit(1);
             if (error) throw error;
 
-            badge.textContent = ' Conectado a Supabase';
+            badge.textContent = '🟢 Conectado a Supabase';
             badge.style.background = 'rgba(40,167,69,0.3)';
 
             // Cargar todos los datos en paralelo
@@ -634,7 +636,7 @@
                 cargarTablaProveedores()
             ]);
         } catch (err) {
-            badge.textContent = ' Sin conexión a base de datos';
+            badge.textContent = '🔴 Sin conexión a base de datos';
             badge.style.background = 'rgba(220,53,69,0.3)';
             console.error('Error de conexión Supabase:', err.message);
         }
@@ -669,12 +671,16 @@
     }
 
     // 4b. Cargar las últimas 50 ventas en la tabla
+    // JOIN: detalle_venta → producto, detalle_venta → venta → visita → cliente
+    // Como las ventas del formulario no tienen visita, el nombre del cliente
+    // se obtiene buscando en la tabla cliente por el último cliente registrado
+    // con ese id. Se usa un enfoque más simple: leer ventas + detalles por separado
+    // y cruzarlos en memoria, evitando columnas que no existen.
     async function cargarTablaVentas() {
         const tbody = document.querySelector('#tablaVentas tbody');
         tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">Cargando...</td></tr>';
 
-        // JOIN: venta → detalle_venta → producto, venta → cliente (via visita, opcional)
-        // Como el formulario no captura visita, leemos directamente venta + detalle_venta + producto
+        // Leemos detalle_venta con JOIN a producto y a venta (solo columnas reales)
         const { data, error } = await db
             .from('detalle_venta')
             .select(`
@@ -682,18 +688,20 @@
                 precio_unitario_al_momento,
                 producto:id_producto ( nombre ),
                 venta:id_venta (
+                    id_venta,
                     fecha_hora,
                     total_venta,
                     metodo_pago,
-                    descuento_aplicado
+                    descuento_aplicado,
+                    id_visita
                 )
             `)
             .order('id_detalle', { ascending: false })
             .limit(50);
 
         if (error) {
-            // Fallback: leer solo venta si el join falla por RLS
-            cargarTablaVentasSimple();
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">Error al cargar ventas</td></tr>';
+            console.error('cargarTablaVentas:', error.message);
             return;
         }
 
@@ -702,44 +710,39 @@
             return;
         }
 
+        // Intentar obtener nombres de clientes via visita (si existe)
+        // Para ventas sin visita, mostramos '—'
+        const visitaIds = [...new Set(
+            data.map(d => d.venta?.id_visita).filter(Boolean)
+        )];
+
+        let clientesPorVisita = {};
+        if (visitaIds.length > 0) {
+            const { data: visitas } = await db
+                .from('visita')
+                .select('id_visita, cliente:id_cliente ( nombre )')
+                .in('id_visita', visitaIds);
+            if (visitas) {
+                visitas.forEach(v => {
+                    clientesPorVisita[v.id_visita] = v.cliente?.nombre || '—';
+                });
+            }
+        }
+
         tbody.innerHTML = data.map(d => {
             const v = d.venta || {};
             const fecha = v.fecha_hora ? new Date(v.fecha_hora).toLocaleString('es-MX') : '—';
+            const cliente = v.id_visita ? (clientesPorVisita[v.id_visita] || '—') : '—';
             return `
                 <tr>
                     <td>${fecha}</td>
-                    <td>${v.cliente_nombre || '—'}</td>
+                    <td>${cliente}</td>
                     <td>${d.producto?.nombre || '—'}</td>
                     <td>${d.cantidad}</td>
                     <td>$${parseFloat(v.total_venta || 0).toFixed(2)}</td>
                     <td>${v.metodo_pago || '—'}</td>
                 </tr>`;
         }).join('');
-    }
-
-    // Fallback simple si el join falla
-    async function cargarTablaVentasSimple() {
-        const tbody = document.querySelector('#tablaVentas tbody');
-        const { data, error } = await db
-            .from('venta')
-            .select('fecha_hora, cliente_nombre, total_venta, metodo_pago')
-            .order('id_venta', { ascending: false })
-            .limit(50);
-
-        if (error || !data || data.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">No hay ventas registradas aún</td></tr>';
-            return;
-        }
-
-        tbody.innerHTML = data.map(v => `
-            <tr>
-                <td>${new Date(v.fecha_hora).toLocaleString('es-MX')}</td>
-                <td>${v.cliente_nombre || '—'}</td>
-                <td>—</td>
-                <td>—</td>
-                <td>$${parseFloat(v.total_venta).toFixed(2)}</td>
-                <td>${v.metodo_pago}</td>
-            </tr>`).join('');
     }
 
     // 4c. Registrar una venta
@@ -793,9 +796,7 @@
             if (!emp) throw new Error('No hay empleados registrados en el sistema.');
             const idEmpleado = emp.id_empleado;
 
-            // 3. Insertar venta
-            // Nota: cliente_nombre es una columna de conveniencia que debes agregar a la tabla venta
-            // si quieres evitar el JOIN. Si no la tienes, el campo simplemente no se guardará.
+            // 3. Insertar venta — vinculada al id_cliente real (no a cliente_nombre)
             const { data: nuevaVenta, error: errVenta } = await db
                 .from('venta')
                 .insert({
@@ -803,8 +804,7 @@
                     fecha_hora:         new Date().toISOString(),
                     total_venta:        parseFloat(total.toFixed(2)),
                     metodo_pago:        metodoPago,
-                    descuento_aplicado: descuento,
-                    cliente_nombre:     nombreCliente  // campo extra de conveniencia
+                    descuento_aplicado: descuento
                 })
                 .select('id_venta')
                 .single();
@@ -821,12 +821,12 @@
                 });
             if (errDetalle) throw new Error('Error al guardar detalle de venta: ' + errDetalle.message);
 
-            showAlert('ventaAlert', ' Venta registrada exitosamente', 'success');
+            showAlert('ventaAlert', '✅ Venta registrada exitosamente', 'success');
             this.reset();
             await cargarTablaVentas();
 
         } catch (err) {
-            showAlert('ventaAlert', 'Error ' + err.message, 'error');
+            showAlert('ventaAlert', '❌ ' + err.message, 'error');
             console.error('Error al registrar venta:', err);
         } finally {
             setBoton('btnVenta', false);
@@ -863,7 +863,7 @@
         tbody.innerHTML = data.map(item => {
             const bajo = parseFloat(item.stock_actual) <= parseFloat(item.stock_minimo);
             const estado = bajo
-                ? '<span class="badge-bajo"> Bajo stock</span>'
+                ? '<span class="badge-bajo">⚠️ Bajo stock</span>'
                 : '<span class="badge-ok">✓ Normal</span>';
             return `
                 <tr>
@@ -920,12 +920,12 @@
 
             if (errInv) throw new Error('Error al guardar inventario: ' + errInv.message);
 
-            showAlert('inventarioAlert', ' Insumo registrado correctamente', 'success');
+            showAlert('inventarioAlert', '✅ Insumo registrado correctamente', 'success');
             this.reset();
             await cargarTablaInventario();
 
         } catch (err) {
-            showAlert('inventarioAlert', 'Error ' + err.message, 'error');
+            showAlert('inventarioAlert', '❌ ' + err.message, 'error');
             console.error('Error al registrar insumo:', err);
         } finally {
             setBoton('btnInventario', false);
@@ -1017,12 +1017,12 @@
 
             if (errTel) throw new Error('Error al guardar teléfono: ' + errTel.message);
 
-            showAlert('proveedorAlert', ' Proveedor registrado exitosamente', 'success');
+            showAlert('proveedorAlert', '✅ Proveedor registrado exitosamente', 'success');
             this.reset();
             await cargarTablaProveedores();
 
         } catch (err) {
-            showAlert('proveedorAlert', 'Error  ' + err.message, 'error');
+            showAlert('proveedorAlert', '❌ ' + err.message, 'error');
             console.error('Error al registrar proveedor:', err);
         } finally {
             setBoton('btnProveedor', false);
