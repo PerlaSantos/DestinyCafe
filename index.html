@@ -585,16 +585,14 @@
         </div>
     </footer>
 
-    <!-- ============================================================
-         JAVASCRIPT — Integración con Supabase
-         ============================================================ -->
+     // JavaScript
     <script>
-    // ─── 1. INICIALIZAR SUPABASE ───────────────────────────────────────────────
+    // ─── 1. INICIALIZAR SUPABASE 
     const SUPABASE_URL  = 'https://udczvtbgygdovwwwvrnm.supabase.co';
     const SUPABASE_KEY  = 'sb_publishable_HopkZ8umbgYzAEOlvqq81A_l-qQIeIE';
     const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    // ─── 2. UTILIDADES ────────────────────────────────────────────────────────
+    // ─── 2. UTILIDADES 
     function showAlert(elementId, message, type) {
         const el = document.getElementById(elementId);
         el.textContent = message;
@@ -687,8 +685,7 @@
                     fecha_hora,
                     total_venta,
                     metodo_pago,
-                    descuento_aplicado,
-                    cliente_nombre
+                    descuento_aplicado
                 )
             `)
             .order('id_detalle', { ascending: false })
