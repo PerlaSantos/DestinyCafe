@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cafetería-Restaurante | Sistema de Gestión</title>
+
+    <!-- SDK de Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
     <style>
         * {
             margin: 0;
@@ -216,6 +220,12 @@
             opacity: 0.95;
         }
 
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
         .btn-secondary {
             background: #e6b17e;
             color: #2c1810;
@@ -312,6 +322,22 @@
             color: #721c24;
             border: 1px solid #f5c6cb;
         }
+
+        /* Badge de estado de conexión */
+        #conexionEstado {
+            font-size: 0.75rem;
+            padding: 0.25rem 0.75rem;
+            border-radius: 999px;
+            font-weight: 600;
+            background: rgba(255,255,255,0.15);
+            color: #f9e5c8;
+            margin-top: 0.4rem;
+            display: inline-block;
+        }
+
+        /* Badge bajo stock */
+        .badge-bajo { color: #dc3545; font-weight: bold; }
+        .badge-ok   { color: #28a745; }
     </style>
 </head>
 <body>
@@ -320,6 +346,7 @@
             <div class="logo">
                 <h1>☕ Cafetería Artesanal</h1>
                 <p>Bebidas frías y calientes | Panadería artesanal | Cocina de autor</p>
+                <span id="conexionEstado">⏳ Conectando a base de datos...</span>
             </div>
             <nav>
                 <ul>
@@ -365,30 +392,24 @@
                 </div>
             </section>
 
-            <!-- Formularios de Gestión -->
+            <!-- ===================== VENTAS ===================== -->
             <section id="ventas">
                 <h2 class="section-title">Gestión de Ventas</h2>
                 <div class="forms-grid">
-                    <!-- Formulario de Registro de Venta -->
                     <div class="form-container">
                         <h3>Registrar Nueva Venta</h3>
                         <div id="ventaAlert" class="alert"></div>
                         <form id="ventaForm">
                             <div class="form-group">
                                 <label for="nombreCliente">Nombre del Cliente</label>
-                                <input type="text" id="nombreCliente" name="nombreCliente" placeholder="Ej. María González" required>
+                                <input type="text" id="nombreCliente" name="nombreCliente"
+                                       placeholder="Ej. María González" required>
                             </div>
                             <div class="form-group">
                                 <label for="producto">Producto</label>
+                                <!-- El select se llena dinámicamente desde la tabla "producto" en Supabase -->
                                 <select id="producto" name="producto" required>
-                                    <option value="">Selecciona un producto</option>
-                                    <option value="Café Americano">Café Americano - $45</option>
-                                    <option value="Frapé de Vainilla">Frapé de Vainilla - $65</option>
-                                    <option value="Saint Germain Spritz">Saint Germain Spritz - $120</option>
-                                    <option value="Sándwich de Pollo">Sándwich de Pollo - $85</option>
-                                    <option value="Chilaquiles">Chilaquiles - $95</option>
-                                    <option value="Brioche Artesanal">Brioche Artesanal - $35</option>
-                                    <option value="Chocolatín">Chocolatín - $25</option>
+                                    <option value="">Cargando productos...</option>
                                 </select>
                             </div>
                             <div class="form-group">
@@ -398,20 +419,20 @@
                             <div class="form-group">
                                 <label for="metodoPago">Método de Pago</label>
                                 <select id="metodoPago" name="metodoPago" required>
-                                    <option value="Efectivo">Efectivo</option>
-                                    <option value="Tarjeta">Tarjeta</option>
-                                    <option value="Transferencia">Transferencia</option>
+                                    <option value="EFECTIVO">Efectivo</option>
+                                    <option value="TARJETA">Tarjeta</option>
+                                    <option value="TRANSFERENCIA">Transferencia</option>
+                                    <option value="APP">App (CoDi / Pay)</option>
                                 </select>
                             </div>
                             <div class="form-group">
                                 <label for="descuento">Descuento (%)</label>
                                 <input type="number" id="descuento" name="descuento" min="0" max="100" value="0">
                             </div>
-                            <button type="submit" class="btn">Registrar Venta</button>
+                            <button type="submit" class="btn" id="btnVenta">Registrar Venta</button>
                         </form>
                     </div>
 
-                    <!-- Tabla de Ventas Recientes -->
                     <div class="form-container">
                         <h3>Ventas Recientes</h3>
                         <div class="table-container">
@@ -421,15 +442,13 @@
                                         <th>Fecha</th>
                                         <th>Cliente</th>
                                         <th>Producto</th>
-                                        <th>Cantidad</th>
+                                        <th>Cant.</th>
                                         <th>Total</th>
                                         <th>Pago</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <tr>
-                                        <td colspan="6" style="text-align: center;">No hay ventas registradas aún</td>
-                                    </tr>
+                                    <tr><td colspan="6" style="text-align:center;">Cargando ventas...</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -437,7 +456,7 @@
                 </div>
             </section>
 
-            <!-- Gestión de Inventario -->
+            <!-- ===================== INVENTARIO ===================== -->
             <section id="inventario">
                 <h2 class="section-title">Control de Inventario</h2>
                 <div class="forms-grid">
@@ -447,30 +466,37 @@
                         <form id="inventarioForm">
                             <div class="form-group">
                                 <label for="nombreInsumo">Nombre del Insumo</label>
-                                <input type="text" id="nombreInsumo" name="nombreInsumo" placeholder="Ej. Café molido" required>
+                                <input type="text" id="nombreInsumo" name="nombreInsumo"
+                                       placeholder="Ej. Café molido" required>
                             </div>
                             <div class="form-group">
                                 <label for="cantidadStock">Cantidad en Stock</label>
-                                <input type="number" id="cantidadStock" name="cantidadStock" placeholder="Ej. 15 kg" required>
+                                <input type="number" id="cantidadStock" name="cantidadStock"
+                                       step="0.001" min="0" placeholder="Ej. 15" required>
                             </div>
                             <div class="form-group">
                                 <label for="unidad">Unidad de Medida</label>
+                                <!-- Valores alineados con el ENUM unidad_medida_enum de Supabase -->
                                 <select id="unidad" name="unidad" required>
                                     <option value="kg">Kilogramos (kg)</option>
-                                    <option value="lt">Litros (lt)</option>
-                                    <option value="pz">Piezas (pz)</option>
-                                    <option value="gr">Gramos (gr)</option>
+                                    <option value="g">Gramos (g)</option>
+                                    <option value="L">Litros (L)</option>
+                                    <option value="mL">Mililitros (mL)</option>
+                                    <option value="pieza">Piezas</option>
+                                    <option value="paquete">Paquete</option>
+                                    <option value="caja">Caja</option>
                                 </select>
                             </div>
                             <div class="form-group">
                                 <label for="stockMinimo">Stock Mínimo (Alerta)</label>
-                                <input type="number" id="stockMinimo" name="stockMinimo" placeholder="Ej. 3" required>
+                                <input type="number" id="stockMinimo" name="stockMinimo"
+                                       step="0.001" min="0" placeholder="Ej. 3" required>
                             </div>
                             <div class="form-group">
                                 <label for="fechaCaducidad">Fecha de Caducidad</label>
                                 <input type="date" id="fechaCaducidad" name="fechaCaducidad">
                             </div>
-                            <button type="submit" class="btn">Registrar Insumo</button>
+                            <button type="submit" class="btn" id="btnInventario">Registrar Insumo</button>
                         </form>
                     </div>
 
@@ -488,9 +514,7 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <tr>
-                                        <td colspan="5" style="text-align: center;">No hay insumos registrados</td>
-                                    </tr>
+                                    <tr><td colspan="5" style="text-align:center;">Cargando inventario...</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -498,7 +522,7 @@
                 </div>
             </section>
 
-            <!-- Gestión de Proveedores -->
+            <!-- ===================== PROVEEDORES ===================== -->
             <section id="proveedores">
                 <h2 class="section-title">Proveedores</h2>
                 <div class="forms-grid">
@@ -508,21 +532,26 @@
                         <form id="proveedorForm">
                             <div class="form-group">
                                 <label for="nombreProveedor">Nombre del Proveedor</label>
-                                <input type="text" id="nombreProveedor" name="nombreProveedor" placeholder="Ej. Central de Abastos" required>
+                                <input type="text" id="nombreProveedor" name="nombreProveedor"
+                                       placeholder="Ej. Central de Abastos" required>
                             </div>
                             <div class="form-group">
-                                <label for="telefono">Teléfono</label>
-                                <input type="tel" id="telefono" name="telefono" placeholder="55 1234 5678" required>
+                                <label for="telefono">Teléfono (10 dígitos)</label>
+                                <input type="tel" id="telefono" name="telefono"
+                                       placeholder="5512345678" maxlength="10"
+                                       pattern="[0-9]{10}" required>
                             </div>
                             <div class="form-group">
                                 <label for="productosSuministra">Productos que Suministra</label>
-                                <textarea id="productosSuministra" name="productosSuministra" rows="2" placeholder="Ej. Lácteos, verduras, frutas" required></textarea>
+                                <textarea id="productosSuministra" name="productosSuministra"
+                                          rows="2" placeholder="Ej. Lácteos, verduras, frutas" required></textarea>
                             </div>
                             <div class="form-group">
-                                <label for="reseñas">Reseñas / Notas</label>
-                                <textarea id="reseñas" name="reseñas" rows="2" placeholder="Ej. Buen servicio, entrega puntual"></textarea>
+                                <label for="resenas">Reseñas / Notas</label>
+                                <textarea id="resenas" name="resenas"
+                                          rows="2" placeholder="Ej. Buen servicio, entrega puntual"></textarea>
                             </div>
-                            <button type="submit" class="btn">Registrar Proveedor</button>
+                            <button type="submit" class="btn" id="btnProveedor">Registrar Proveedor</button>
                         </form>
                     </div>
 
@@ -539,9 +568,7 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <tr>
-                                        <td colspan="4" style="text-align: center;">No hay proveedores registrados</td>
-                                    </tr>
+                                    <tr><td colspan="4" style="text-align:center;">Cargando proveedores...</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -558,154 +585,455 @@
         </div>
     </footer>
 
+    <!-- ============================================================
+         JAVASCRIPT — Integración con Supabase
+         ============================================================ -->
     <script>
-        // Almacenamiento local para simular la base de datos
-        let ventas = [];
-        let inventario = [];
-        let proveedores = [];
+    // ─── 1. INICIALIZAR SUPABASE ───────────────────────────────────────────────
+    const SUPABASE_URL  = 'https://udczvtbgygdovwwwvrnm.supabase.co';
+    const SUPABASE_KEY  = 'sb_publishable_HopkZ8umbgYzAEOlvqq81A_l-qQIeIE';
+    const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        // Función para mostrar alertas
-        function showAlert(elementId, message, type) {
-            const alertDiv = document.getElementById(elementId);
-            alertDiv.textContent = message;
-            alertDiv.className = `alert alert-${type}`;
-            alertDiv.style.display = 'block';
-            
-            setTimeout(() => {
-                alertDiv.style.display = 'none';
-            }, 3000);
+    // ─── 2. UTILIDADES ────────────────────────────────────────────────────────
+    function showAlert(elementId, message, type) {
+        const el = document.getElementById(elementId);
+        el.textContent = message;
+        el.className = `alert alert-${type}`;
+        el.style.display = 'block';
+        setTimeout(() => { el.style.display = 'none'; }, 4000);
+    }
+
+    function setBoton(id, cargando) {
+        const btn = document.getElementById(id);
+        btn.disabled = cargando;
+        btn.textContent = cargando ? 'Guardando...' : btn.dataset.texto;
+    }
+
+    // Guardar el texto original de cada botón al cargar
+    document.addEventListener('DOMContentLoaded', () => {
+        ['btnVenta', 'btnInventario', 'btnProveedor'].forEach(id => {
+            const btn = document.getElementById(id);
+            if (btn) btn.dataset.texto = btn.textContent;
+        });
+    });
+
+    // ─── 3. VERIFICAR CONEXIÓN Y CARGAR DATOS INICIALES ───────────────────────
+    async function inicializar() {
+        const badge = document.getElementById('conexionEstado');
+        try {
+            // Prueba rápida de conexión
+            const { error } = await db.from('producto').select('id_producto').limit(1);
+            if (error) throw error;
+
+            badge.textContent = ' Conectado a Supabase';
+            badge.style.background = 'rgba(40,167,69,0.3)';
+
+            // Cargar todos los datos en paralelo
+            await Promise.all([
+                cargarProductosSelect(),
+                cargarTablaVentas(),
+                cargarTablaInventario(),
+                cargarTablaProveedores()
+            ]);
+        } catch (err) {
+            badge.textContent = ' Sin conexión a base de datos';
+            badge.style.background = 'rgba(220,53,69,0.3)';
+            console.error('Error de conexión Supabase:', err.message);
+        }
+    }
+
+    // ─── 4. SECCIÓN VENTAS ────────────────────────────────────────────────────
+
+    // 4a. Llenar el <select> de productos con los de la BD
+    async function cargarProductosSelect() {
+        const select = document.getElementById('producto');
+        const { data, error } = await db
+            .from('producto')
+            .select('id_producto, nombre, precio, categoria')
+            .eq('disponible', true)
+            .order('categoria')
+            .order('nombre');
+
+        if (error) {
+            select.innerHTML = '<option value="">Error al cargar productos</option>';
+            console.error('cargarProductosSelect:', error.message);
+            return;
         }
 
-        // Función para actualizar la tabla de ventas
-        function actualizarTablaVentas() {
-            const tbody = document.querySelector('#tablaVentas tbody');
-            if (ventas.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">No hay ventas registradas aún</td></tr>';
-                return;
-            }
-            
-            tbody.innerHTML = ventas.map(venta => `
+        select.innerHTML = '<option value="">Selecciona un producto</option>';
+        data.forEach(p => {
+            const opt = document.createElement('option');
+            // Guardamos precio e id en el value como JSON para usarlos al calcular
+            opt.value = JSON.stringify({ id: p.id_producto, precio: p.precio });
+            opt.textContent = `${p.nombre} — $${parseFloat(p.precio).toFixed(2)} (${p.categoria})`;
+            select.appendChild(opt);
+        });
+    }
+
+    // 4b. Cargar las últimas 50 ventas en la tabla
+    async function cargarTablaVentas() {
+        const tbody = document.querySelector('#tablaVentas tbody');
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">Cargando...</td></tr>';
+
+        // JOIN: venta → detalle_venta → producto, venta → cliente (via visita, opcional)
+        // Como el formulario no captura visita, leemos directamente venta + detalle_venta + producto
+        const { data, error } = await db
+            .from('detalle_venta')
+            .select(`
+                cantidad,
+                precio_unitario_al_momento,
+                producto:id_producto ( nombre ),
+                venta:id_venta (
+                    fecha_hora,
+                    total_venta,
+                    metodo_pago,
+                    descuento_aplicado,
+                    cliente_nombre
+                )
+            `)
+            .order('id_detalle', { ascending: false })
+            .limit(50);
+
+        if (error) {
+            // Fallback: leer solo venta si el join falla por RLS
+            cargarTablaVentasSimple();
+            return;
+        }
+
+        if (!data || data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">No hay ventas registradas aún</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = data.map(d => {
+            const v = d.venta || {};
+            const fecha = v.fecha_hora ? new Date(v.fecha_hora).toLocaleString('es-MX') : '—';
+            return `
                 <tr>
-                    <td>${venta.fecha}</td>
-                    <td>${venta.cliente}</td>
-                    <td>${venta.producto}</td>
-                    <td>${venta.cantidad}</td>
-                    <td>$${venta.total}</td>
-                    <td>${venta.pago}</td>
-                </tr>
-            `).join('');
+                    <td>${fecha}</td>
+                    <td>${v.cliente_nombre || '—'}</td>
+                    <td>${d.producto?.nombre || '—'}</td>
+                    <td>${d.cantidad}</td>
+                    <td>$${parseFloat(v.total_venta || 0).toFixed(2)}</td>
+                    <td>${v.metodo_pago || '—'}</td>
+                </tr>`;
+        }).join('');
+    }
+
+    // Fallback simple si el join falla
+    async function cargarTablaVentasSimple() {
+        const tbody = document.querySelector('#tablaVentas tbody');
+        const { data, error } = await db
+            .from('venta')
+            .select('fecha_hora, cliente_nombre, total_venta, metodo_pago')
+            .order('id_venta', { ascending: false })
+            .limit(50);
+
+        if (error || !data || data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">No hay ventas registradas aún</td></tr>';
+            return;
         }
 
-        // Función para actualizar la tabla de inventario
-        function actualizarTablaInventario() {
-            const tbody = document.querySelector('#tablaInventario tbody');
-            if (inventario.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center;">No hay insumos registrados</td></tr>';
-                return;
+        tbody.innerHTML = data.map(v => `
+            <tr>
+                <td>${new Date(v.fecha_hora).toLocaleString('es-MX')}</td>
+                <td>${v.cliente_nombre || '—'}</td>
+                <td>—</td>
+                <td>—</td>
+                <td>$${parseFloat(v.total_venta).toFixed(2)}</td>
+                <td>${v.metodo_pago}</td>
+            </tr>`).join('');
+    }
+
+    // 4c. Registrar una venta
+    // Flujo: insertar/buscar cliente → insertar venta → insertar detalle_venta
+    document.getElementById('ventaForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        setBoton('btnVenta', true);
+
+        try {
+            const nombreCliente = document.getElementById('nombreCliente').value.trim();
+            const productoRaw   = document.getElementById('producto').value;
+            const cantidad      = parseInt(document.getElementById('cantidad').value);
+            const metodoPago    = document.getElementById('metodoPago').value;
+            const descuento     = parseFloat(document.getElementById('descuento').value) || 0;
+
+            if (!productoRaw) throw new Error('Selecciona un producto.');
+            const { id: idProducto, precio } = JSON.parse(productoRaw);
+
+            // Calcular total
+            const subtotal = precio * cantidad;
+            const total    = subtotal * (1 - descuento / 100);
+
+            // 1. Buscar o crear cliente
+            let idCliente;
+            const { data: clienteExist } = await db
+                .from('cliente')
+                .select('id_cliente')
+                .ilike('nombre', nombreCliente)
+                .limit(1)
+                .single();
+
+            if (clienteExist) {
+                idCliente = clienteExist.id_cliente;
+            } else {
+                const { data: nuevoCliente, error: errCliente } = await db
+                    .from('cliente')
+                    .insert({ nombre: nombreCliente })
+                    .select('id_cliente')
+                    .single();
+                if (errCliente) throw new Error('Error al registrar cliente: ' + errCliente.message);
+                idCliente = nuevoCliente.id_cliente;
             }
-            
-            tbody.innerHTML = inventario.map(item => {
-                let estado = '';
-                if (item.stock <= item.stockMinimo) {
-                    estado = '<span style="color: #dc3545; font-weight: bold;">⚠️ Bajo stock</span>';
-                } else {
-                    estado = '<span style="color: #28a745;">✓ Normal</span>';
+
+            // 2. Obtener el primer empleado activo (cajero del sistema)
+            const { data: emp } = await db
+                .from('empleado')
+                .select('id_empleado')
+                .eq('activo', true)
+                .limit(1)
+                .single();
+            if (!emp) throw new Error('No hay empleados registrados en el sistema.');
+            const idEmpleado = emp.id_empleado;
+
+            // 3. Insertar venta
+            // Nota: cliente_nombre es una columna de conveniencia que debes agregar a la tabla venta
+            // si quieres evitar el JOIN. Si no la tienes, el campo simplemente no se guardará.
+            const { data: nuevaVenta, error: errVenta } = await db
+                .from('venta')
+                .insert({
+                    id_empleado:        idEmpleado,
+                    fecha_hora:         new Date().toISOString(),
+                    total_venta:        parseFloat(total.toFixed(2)),
+                    metodo_pago:        metodoPago,
+                    descuento_aplicado: descuento,
+                    cliente_nombre:     nombreCliente  // campo extra de conveniencia
+                })
+                .select('id_venta')
+                .single();
+            if (errVenta) throw new Error('Error al registrar venta: ' + errVenta.message);
+
+            // 4. Insertar detalle_venta
+            const { error: errDetalle } = await db
+                .from('detalle_venta')
+                .insert({
+                    id_venta:                  nuevaVenta.id_venta,
+                    id_producto:               idProducto,
+                    cantidad:                  cantidad,
+                    precio_unitario_al_momento: precio
+                });
+            if (errDetalle) throw new Error('Error al guardar detalle de venta: ' + errDetalle.message);
+
+            showAlert('ventaAlert', ' Venta registrada exitosamente', 'success');
+            this.reset();
+            await cargarTablaVentas();
+
+        } catch (err) {
+            showAlert('ventaAlert', 'Error ' + err.message, 'error');
+            console.error('Error al registrar venta:', err);
+        } finally {
+            setBoton('btnVenta', false);
+        }
+    });
+
+    // ─── 5. SECCIÓN INVENTARIO ────────────────────────────────────────────────
+
+    // 5a. Cargar inventario en tabla (JOIN inventario + insumo)
+    async function cargarTablaInventario() {
+        const tbody = document.querySelector('#tablaInventario tbody');
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Cargando...</td></tr>';
+
+        const { data, error } = await db
+            .from('inventario')
+            .select(`
+                stock_actual,
+                stock_minimo,
+                insumo:id_insumo ( nombre_insumo, unidad_medida )
+            `)
+            .order('id_inventario', { ascending: false });
+
+        if (error) {
+            tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;">Error al cargar inventario</td></tr>`;
+            console.error('cargarTablaInventario:', error.message);
+            return;
+        }
+
+        if (!data || data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">No hay insumos registrados</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = data.map(item => {
+            const bajo = parseFloat(item.stock_actual) <= parseFloat(item.stock_minimo);
+            const estado = bajo
+                ? '<span class="badge-bajo"> Bajo stock</span>'
+                : '<span class="badge-ok">✓ Normal</span>';
+            return `
+                <tr>
+                    <td>${item.insumo?.nombre_insumo || '—'}</td>
+                    <td>${parseFloat(item.stock_actual)}</td>
+                    <td>${item.insumo?.unidad_medida || '—'}</td>
+                    <td>${parseFloat(item.stock_minimo)}</td>
+                    <td>${estado}</td>
+                </tr>`;
+        }).join('');
+    }
+
+    // 5b. Registrar insumo → inserta en INSUMO y luego en INVENTARIO
+    document.getElementById('inventarioForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        setBoton('btnInventario', true);
+
+        try {
+            const nombre        = document.getElementById('nombreInsumo').value.trim();
+            const stockActual   = parseFloat(document.getElementById('cantidadStock').value);
+            const unidad        = document.getElementById('unidad').value;
+            const stockMinimo   = parseFloat(document.getElementById('stockMinimo').value);
+            const fechaRaw      = document.getElementById('fechaCaducidad').value;
+            const fechaVenc     = fechaRaw || null;
+
+            // 1. Insertar en tabla INSUMO
+            const { data: nuevoInsumo, error: errInsumo } = await db
+                .from('insumo')
+                .insert({
+                    nombre_insumo:    nombre,
+                    unidad_medida:    unidad,
+                    fecha_vencimiento: fechaVenc
+                })
+                .select('id_insumo')
+                .single();
+
+            if (errInsumo) {
+                // Si ya existe el insumo (UNIQUE), obtenemos su id
+                if (errInsumo.code === '23505') {
+                    throw new Error(`Ya existe un insumo con el nombre "${nombre}". Usa un nombre diferente.`);
                 }
-                return `
-                    <tr>
-                        <td>${item.nombre}</td>
-                        <td>${item.stock}</td>
-                        <td>${item.unidad}</td>
-                        <td>${item.stockMinimo}</td>
-                        <td>${estado}</td>
-                    </tr>
-                `;
-            }).join('');
+                throw new Error('Error al crear insumo: ' + errInsumo.message);
+            }
+
+            // 2. Insertar en tabla INVENTARIO
+            const { error: errInv } = await db
+                .from('inventario')
+                .insert({
+                    id_insumo:                 nuevoInsumo.id_insumo,
+                    stock_actual:              stockActual,
+                    stock_minimo:              stockMinimo,
+                    fecha_ultima_actualizacion: new Date().toISOString()
+                });
+
+            if (errInv) throw new Error('Error al guardar inventario: ' + errInv.message);
+
+            showAlert('inventarioAlert', ' Insumo registrado correctamente', 'success');
+            this.reset();
+            await cargarTablaInventario();
+
+        } catch (err) {
+            showAlert('inventarioAlert', 'Error ' + err.message, 'error');
+            console.error('Error al registrar insumo:', err);
+        } finally {
+            setBoton('btnInventario', false);
+        }
+    });
+
+    // ─── 6. SECCIÓN PROVEEDORES ───────────────────────────────────────────────
+
+    // 6a. Cargar proveedores en tabla (JOIN proveedor + telefono_proveedor)
+    async function cargarTablaProveedores() {
+        const tbody = document.querySelector('#tablaProveedores tbody');
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Cargando...</td></tr>';
+
+        const { data, error } = await db
+            .from('proveedor')
+            .select(`
+                id_proveedor,
+                nombre_proveedor,
+                productos_suministra,
+                resenas,
+                telefono_proveedor ( telefono )
+            `)
+            .eq('activo', true)
+            .order('id_proveedor', { ascending: false });
+
+        if (error) {
+            tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;">Error al cargar proveedores</td></tr>`;
+            console.error('cargarTablaProveedores:', error.message);
+            return;
         }
 
-        // Función para actualizar la tabla de proveedores
-        function actualizarTablaProveedores() {
-            const tbody = document.querySelector('#tablaProveedores tbody');
-            if (proveedores.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="4" style="text-align: center;">No hay proveedores registrados</td></tr>';
-                return;
-            }
-            
-            tbody.innerHTML = proveedores.map(prov => `
+        if (!data || data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">No hay proveedores registrados</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = data.map(p => {
+            const telefonos = (p.telefono_proveedor || []).map(t => t.telefono).join(', ') || '—';
+            return `
                 <tr>
-                    <td>${prov.nombre}</td>
-                    <td>${prov.telefono}</td>
-                    <td>${prov.productos}</td>
-                    <td>${prov.reseñas || '-'}</td>
-                </tr>
-            `).join('');
-        }
+                    <td>${p.nombre_proveedor}</td>
+                    <td>${telefonos}</td>
+                    <td>${p.productos_suministra || '—'}</td>
+                    <td>${p.resenas || '—'}</td>
+                </tr>`;
+        }).join('');
+    }
 
-        // Manejo del formulario de ventas
-        document.getElementById('ventaForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-            
-            const productoSelect = document.getElementById('producto');
-            const productoTexto = productoSelect.options[productoSelect.selectedIndex].text;
-            const precioMatch = productoTexto.match(/\$(\d+)/);
-            const precio = precioMatch ? parseInt(precioMatch[1]) : 0;
-            const cantidad = parseInt(document.getElementById('cantidad').value);
-            const descuento = parseInt(document.getElementById('descuento').value);
-            
-            let total = precio * cantidad;
-            if (descuento > 0) {
-                total = total * (1 - descuento / 100);
+    // 6b. Registrar proveedor → inserta en PROVEEDOR y en TELEFONO_PROVEEDOR
+    document.getElementById('proveedorForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        setBoton('btnProveedor', true);
+
+        try {
+            const nombre    = document.getElementById('nombreProveedor').value.trim();
+            const telefono  = document.getElementById('telefono').value.replace(/\D/g, ''); // solo dígitos
+            const productos = document.getElementById('productosSuministra').value.trim();
+            const resenas   = document.getElementById('resenas').value.trim();
+
+            if (telefono.length !== 10) {
+                throw new Error('El teléfono debe tener exactamente 10 dígitos.');
             }
-            
-            const nuevaVenta = {
-                fecha: new Date().toLocaleString(),
-                cliente: document.getElementById('nombreCliente').value,
-                producto: productoTexto.split(' -')[0],
-                cantidad: cantidad,
-                total: total.toFixed(2),
-                pago: document.getElementById('metodoPago').value
-            };
-            
-            ventas.unshift(nuevaVenta);
-            actualizarTablaVentas();
+
+            // 1. Insertar en PROVEEDOR
+            const { data: nuevoProv, error: errProv } = await db
+                .from('proveedor')
+                .insert({
+                    nombre_proveedor:    nombre,
+                    productos_suministra: productos,
+                    resenas:             resenas || null
+                })
+                .select('id_proveedor')
+                .single();
+
+            if (errProv) {
+                if (errProv.code === '23505') {
+                    throw new Error(`Ya existe un proveedor con el nombre "${nombre}".`);
+                }
+                throw new Error('Error al registrar proveedor: ' + errProv.message);
+            }
+
+            // 2. Insertar en TELEFONO_PROVEEDOR
+            const { error: errTel } = await db
+                .from('telefono_proveedor')
+                .insert({
+                    id_proveedor: nuevoProv.id_proveedor,
+                    telefono:     telefono
+                });
+
+            if (errTel) throw new Error('Error al guardar teléfono: ' + errTel.message);
+
+            showAlert('proveedorAlert', ' Proveedor registrado exitosamente', 'success');
             this.reset();
-            showAlert('ventaAlert', 'Venta registrada exitosamente', 'success');
-        });
-        
-        // Manejo del formulario de inventario
-        document.getElementById('inventarioForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-            
-            const nuevoInsumo = {
-                nombre: document.getElementById('nombreInsumo').value,
-                stock: parseInt(document.getElementById('cantidadStock').value),
-                unidad: document.getElementById('unidad').value,
-                stockMinimo: parseInt(document.getElementById('stockMinimo').value),
-                fechaCaducidad: document.getElementById('fechaCaducidad').value
-            };
-            
-            inventario.push(nuevoInsumo);
-            actualizarTablaInventario();
-            this.reset();
-            showAlert('inventarioAlert', 'Insumo registrado correctamente', 'success');
-        });
-        
-        // Manejo del formulario de proveedores
-        document.getElementById('proveedorForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-            
-            const nuevoProveedor = {
-                nombre: document.getElementById('nombreProveedor').value,
-                telefono: document.getElementById('telefono').value,
-                productos: document.getElementById('productosSuministra').value,
-                reseñas: document.getElementById('reseñas').value
-            };
-            
-            proveedores.push(nuevoProveedor);
-            actualizarTablaProveedores();
-            this.reset();
-            showAlert('proveedorAlert', 'Proveedor registrado exitosamente', 'success');
-        });
+            await cargarTablaProveedores();
+
+        } catch (err) {
+            showAlert('proveedorAlert', 'Error  ' + err.message, 'error');
+            console.error('Error al registrar proveedor:', err);
+        } finally {
+            setBoton('btnProveedor', false);
+        }
+    });
+
+    // ─── 7. ARRANQUE ──────────────────────────────────────────────────────────
+    inicializar();
     </script>
 </body>
 </html>
