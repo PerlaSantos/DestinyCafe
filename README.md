@@ -1,6 +1,5 @@
 # DestinyCafe - Sistema de Gestión para Cafetería Artesanal
 
-## Descripción del Proyecto
 
 DestinyCafe es un sistema web de gestión integral diseñado para una cafetería artesanal ubicada en la colonia Reforma, Ciudad de México, que atiende principalmente a turistas y locales. La plataforma permite administrar de manera centralizada los procesos clave del negocio, incluyendo el control de clientes, productos, inventario de insumos, proveedores y ventas.
 
@@ -87,7 +86,7 @@ Si bien el sistema cumple con los requerimientos iniciales, se han identificado 
 
 ## Enlaces del Proyecto
 
-*   **Repositorio General de GitHub**: https://github.com/gabrielhuav/DB-Coursework-2026-2
+*   **Repositorio General de GitHub (Colaboración)**: https://github.com/gabrielhuav/DB-Coursework-2026-2
 *   **Sitio Web (Demo en Vivo)**: https://perlasantos.github.io/DestinyCafe/
-*   **Proyecto en Supabase**: (Enlace al panel de control del proyecto, si es público)
+
 
