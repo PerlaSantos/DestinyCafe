@@ -89,4 +89,5 @@ Si bien el sistema cumple con los requerimientos iniciales, se han identificado 
 *   **Repositorio General de GitHub (Colaboración)**: https://github.com/gabrielhuav/DB-Coursework-2026-2
 *   **Sitio Web (Demo en Vivo)**: https://perlasantos.github.io/DestinyCafe/
 
-
+Evaluación en google lighthouse:
+Evaluación de <img width="800" height="1147" alt="image" src="https://github.com/user-attachments/assets/0bcb325e-201f-4c05-8f0b-4ea4af3bc7aa" />
