@@ -68,6 +68,9 @@ La conexión entre la página web y Supabase se implementó de la siguiente mane
 
 La aplicación web se despliega como un sitio estático en GitHub Pages, mientras que la base de datos permanece alojada y gestionada en la nube de Supabase, ofreciendo una solución completa y de bajo costo.
 
+## Evaluación en google lighthouse
+|<img width="600" height="1147" alt="image" src="https://github.com/user-attachments/assets/0bcb325e-201f-4c05-8f0b-4ea4af3bc7aa" />|
+
 ## Posibles Mejoras y Trabajo a Futuro
 
 Si bien el sistema cumple con los requerimientos iniciales, se han identificado varias áreas de oportunidad para futuras iteraciones:
@@ -77,6 +80,13 @@ Si bien el sistema cumple con los requerimientos iniciales, se han identificado 
 *   Añadir funcionalidad de escaneo de códigos de barras para agilizar el registro de productos en las ventas y el inventario.
 *   Mejorar la interfaz de usuario con un framework moderno como React o Vue.js para ofrecer una experiencia más dinámica y reactiva.
 *   Incorporar la jerarquía de herencia de empleados (Mesero, Bartender, Chef) en la base de datos física para una gestión más granular del personal.
+
+## Notas sobre el uso actual del sistema
+
+Actualmente, el sistema de gestión de inventario, ventas y proveedores está implementado en su versión **estática**, de modo que los datos que se agreguen en los formularios solo se guardarán de forma local y temporal para cada usuario que visite la página.
+
+Todo esto se debe a las limitaciones de Supabase sobre el uso de sus bases de datos, las cuales se desactivan después de siete días sin actividad. Los desarrolladores hemos tomado la decisión de implementar la forma estática para mantener la **funcionalidad del sistema a largo plazo**.
+
 
 ## Integrantes del Equipo
 
@@ -89,5 +99,3 @@ Si bien el sistema cumple con los requerimientos iniciales, se han identificado 
 *   **Repositorio General de GitHub (Colaboración)**: https://github.com/gabrielhuav/DB-Coursework-2026-2
 *   **Sitio Web (Demo en Vivo)**: https://perlasantos.github.io/DestinyCafe/
 
-Evaluación en google lighthouse:
-Evaluación de <img width="800" height="1147" alt="image" src="https://github.com/user-attachments/assets/0bcb325e-201f-4c05-8f0b-4ea4af3bc7aa" />
